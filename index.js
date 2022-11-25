@@ -25,6 +25,7 @@ async function run() {
     const productsCollection = client.db('carResale').collection('products');
     const usersCollection = client.db('carResale').collection('users');
     const bookingsCollection = client.db('carResale').collection('bookings');
+    const advertisesCollection = client.db('carResale').collection('advertises');
 
 
     try {
@@ -112,6 +113,12 @@ async function run() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await productsCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        app.post('/advertisingProducts', async (req, res) => {
+            const product = req.body;
+            const result = await advertisesCollection.insertOne(product);
             res.send(result);
         });
     }
