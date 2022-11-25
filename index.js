@@ -67,6 +67,12 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/users', async (req, res) => {
+            const query = { email: req.query.email };
+            const user = await usersCollection.findOne(query);
+            res.send(user);
+        });
+
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
             const result = await bookingsCollection.insertOne(booking);
