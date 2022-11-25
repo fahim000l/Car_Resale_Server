@@ -24,6 +24,8 @@ async function run() {
     const categoriesCollection = client.db('carResale').collection('categories');
     const productsCollection = client.db('carResale').collection('products');
     const usersCollection = client.db('carResale').collection('users');
+    const bookingsCollection = client.db('carResale').collection('bookings');
+
 
     try {
         app.get('/categories', async (req, res) => {
@@ -54,7 +56,20 @@ async function run() {
 
         app.post('/users', async (req, res) => {
             const user = req.body;
+
+            const query = { email: user.email }
+            const alreadyInserted = await usersCollection.findOne(query);
+            if (alreadyInserted) {
+                return;
+            }
+
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body;
+            const result = await bookingsCollection.insertOne(booking);
             res.send(result);
         });
 
