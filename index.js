@@ -92,6 +92,8 @@ async function run() {
 
         app.post('/addproduct', async (req, res) => {
             const product = req.body;
+            const date = new Date();
+            product.postedTime = date;
             const result = await productsCollection.insertOne(product);
             res.send(result);
         })
