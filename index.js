@@ -35,7 +35,12 @@ async function run() {
         });
 
         app.get('/products', async (req, res) => {
-            const query = {};
+            let query = {};
+
+            if (req.query.email) {
+                query = { sellerEmail: req.query.email };
+            };
+
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
@@ -96,7 +101,7 @@ async function run() {
             product.postedTime = date;
             const result = await productsCollection.insertOne(product);
             res.send(result);
-        })
+        });
 
     }
     finally {
