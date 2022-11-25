@@ -48,6 +48,11 @@ async function run() {
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
+            const bookingQuery = { productId: id }
+            const isBooked = await bookingsCollection.findOne(bookingQuery);
+            if (isBooked) {
+                return res.send({ message: 'alreadyBooked' });
+            }
             const product = await productsCollection.findOne(query);
             res.send(product);
         });
@@ -103,6 +108,12 @@ async function run() {
             res.send(result);
         });
 
+        app.delete('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await productsCollection.deleteOne(query);
+            res.send(result);
+        });
     }
     finally {
 
