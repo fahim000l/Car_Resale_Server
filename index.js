@@ -73,6 +73,17 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/orders', async (req, res) => {
+            let query = {};
+
+            if (req.query.email) {
+                query = { clientEmail: req.query.email }
+            }
+
+            const orders = await bookingsCollection.find(query).toArray();
+            res.send(orders);
+        });
+
     }
     finally {
 
