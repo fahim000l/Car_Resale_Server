@@ -56,6 +56,7 @@ async function run() {
             }
             const product = await productsCollection.findOne(query);
             res.send(product);
+
         });
 
         app.get('/categoryProducts/:id', async (req, res) => {
@@ -112,8 +113,12 @@ async function run() {
         app.delete('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
-            const result = await productsCollection.deleteOne(query);
-            res.send(result);
+            const allDeleteQuery = { productId: id };
+            // const isAdvertised = await advertisesCollection.find(isAdvertisedQuery);
+            const adverderDeleted = await advertisesCollection.deleteOne(allDeleteQuery);
+            const orderDeleted = await bookingsCollection.deleteOne(allDeleteQuery);
+            const productDeleted = await productsCollection.deleteOne(query);
+            res.send({ productDeleted, adverderDeleted, orderDeleted });
         });
 
         app.post('/advertisingProducts', async (req, res) => {
