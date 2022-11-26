@@ -118,8 +118,32 @@ async function run() {
 
         app.post('/advertisingProducts', async (req, res) => {
             const product = req.body;
+            const date = new Date();
+            product.date = date;
             const result = await advertisesCollection.insertOne(product);
             res.send(result);
+        });
+
+        app.get('/advertisingProducts', async (req, res) => {
+            const query = {};
+
+
+            if (req.query.productId) {
+                const checkingQuery = { productId: req.query.productId };
+                const alreadyAdvertised = await advertisesCollection.findOne(checkingQuery);
+                if (alreadyAdvertised) {
+                    return res.send({ message: 'adreadyAdvertised' })
+                }
+            };
+
+            if (req.query.limit) {
+                const advertises = await advertisesCollection.find(query).sort({ date: -1 }).limit(3).toArray();
+                return res.send(advertises);
+            }
+
+            const advertises = await advertisesCollection.find(query).sort({ date: -1 }).toArray();
+            res.send(advertises);
+
         });
     }
     finally {
