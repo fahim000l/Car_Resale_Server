@@ -74,16 +74,59 @@ async function run() {
             if (alreadyInserted) {
                 return;
             }
-
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
 
         app.get('/users', async (req, res) => {
-            const query = { email: req.query.email };
-            const user = await usersCollection.findOne(query);
+            let query;
+            if (req.query.email) {
+                query = { email: req.query.email };
+            }
+            else if (req.query.role === 'seller') {
+                query = { role: 'Seller' };
+            }
+            else if (req.query.role === 'buyer') {
+                query = { role: 'Buyer' };
+            }
+            else if (req.query.role === 'admin') {
+                query = { role: 'admin' };
+            }
+            else {
+                query = {};
+            }
+
+            const user = await usersCollection.find(query).toArray();
             res.send(user);
         });
+
+        app.put('/users/:id', async (req, res) => {
+            const seller = req.body;
+            const id = seller._id;
+            const filter = { _id: ObjectId(id) };
+            const option = { upsert: true };
+            const findingUser = await usersCollection.findOne(filter);
+
+            let updatedDoc
+            if (findingUser.isVerified) {
+                updatedDoc = {
+                    $set: {
+                        isVerified: false
+                    }
+                };
+            }
+            else {
+                updatedDoc = {
+                    $set: {
+                        isVerified: true
+                    }
+                };
+            }
+
+
+            const result = await usersCollection.updateOne(filter, updatedDoc, option);
+            res.send(result);
+        })
 
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
