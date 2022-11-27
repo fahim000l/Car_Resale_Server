@@ -197,8 +197,6 @@ async function run() {
 
         app.get('/advertisingProducts', async (req, res) => {
             const query = {};
-
-
             if (req.query.productId) {
                 const checkingQuery = { productId: req.query.productId };
                 const alreadyAdvertised = await advertisesCollection.findOne(checkingQuery);
@@ -266,7 +264,22 @@ async function run() {
             // }
             // const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
             res.send(result);
-        })
+        });
+
+        app.get('/paidproducts', async (req, res) => {
+            const query = {};
+
+            if (req.query.productId) {
+                const checkingQuery = { productId: req.query.productId };
+                const isPaid = await paymentsCollection.findOne(checkingQuery);
+                if (isPaid) {
+                    return res.send({ message: 'paid' });
+                }
+            }
+
+            const paidProducts = await paymentsCollection.find(query).toArray();
+            res.send(paidProducts);
+        });
     }
     finally {
 
