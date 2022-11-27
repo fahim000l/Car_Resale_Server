@@ -26,7 +26,7 @@ async function run() {
     const usersCollection = client.db('carResale').collection('users');
     const bookingsCollection = client.db('carResale').collection('bookings');
     const advertisesCollection = client.db('carResale').collection('advertises');
-
+    const reportsCollection = client.db('carResale').collection('reports');
 
     try {
         app.get('/categories', async (req, res) => {
@@ -82,22 +82,36 @@ async function run() {
             let query;
             if (req.query.email) {
                 query = { email: req.query.email };
+                const user = await usersCollection.findOne(query);
+                if (!user) {
+                    res.send({ message: 'userNotFound' });
+                }
+                else {
+                    res.send(user);
+                }
             }
             else if (req.query.role === 'seller') {
                 query = { role: 'Seller' };
+                const sellers = await usersCollection.find(query).toArray();
+                res.send(sellers);
             }
             else if (req.query.role === 'buyer') {
                 query = { role: 'Buyer' };
+                const buyers = await usersCollection.find(query).toArray();
+                res.send(buyers);
             }
             else if (req.query.role === 'admin') {
                 query = { role: 'admin' };
+                const admins = await usersCollection.find(query).toArray();
+                res.send(admins);
             }
             else {
                 query = {};
+                const users = await usersCollection.find(query).toArray();
+                res.send(users);
             }
 
-            const user = await usersCollection.find(query).toArray();
-            res.send(user);
+
         });
 
         app.put('/users/:id', async (req, res) => {
@@ -126,7 +140,14 @@ async function run() {
 
             const result = await usersCollection.updateOne(filter, updatedDoc, option);
             res.send(result);
-        })
+        });
+
+        // app.get('/users/:email', async (req, res) => {
+        //     const email = req.params.email;
+        //     const query = { email: email };
+        //     const user = await usersCollection.findOne(query);
+        //     res.send(user)
+        // })
 
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
@@ -193,6 +214,19 @@ async function run() {
             res.send(advertises);
 
         });
+
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        app.post('/report', async (req, res) => {
+            const reportingProduct = req.body;
+            const result = await reportsCollection.insertOne(reportingProduct);
+            res.send(result);
+        })
     }
     finally {
 
