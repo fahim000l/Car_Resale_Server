@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 
@@ -27,6 +28,7 @@ async function run() {
     const bookingsCollection = client.db('carResale').collection('bookings');
     const advertisesCollection = client.db('carResale').collection('advertises');
     const reportsCollection = client.db('carResale').collection('reports');
+    const paymentsCollection = client.db('carResale').collection('payments');
 
     try {
         app.get('/categories', async (req, res) => {
@@ -233,6 +235,38 @@ async function run() {
             const reports = await reportsCollection.find(query).toArray();
             res.send(reports);
         });
+
+        app.post('/create-payment-intent', async (req, res) => {
+            const booking = req.body;
+            const price = booking.price;
+            const amount = price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: 'usd',
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ]
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            // const id = payment.bookingId
+            // const filter = { _id: ObjectId(id) }
+            // const updatedDoc = {
+            //     $set: {
+            //         paid: true,
+            //         transactionId: payment.transactionId
+            //     }
+            // }
+            // const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
+            res.send(result);
+        })
     }
     finally {
 
