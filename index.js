@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -63,7 +64,7 @@ async function run() {
 
         app.get('/categoryProducts/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { categoryId: id };
+            const query = { $and: [{ categoryId: id }, { paid: { $exists: false } }] };
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
@@ -196,7 +197,7 @@ async function run() {
         });
 
         app.get('/advertisingProducts', async (req, res) => {
-            const query = {};
+            const query = { paid: { $exists: false } };
             if (req.query.productId) {
                 const checkingQuery = { productId: req.query.productId };
                 const alreadyAdvertised = await advertisesCollection.findOne(checkingQuery);
@@ -254,15 +255,18 @@ async function run() {
         app.post('/payments', async (req, res) => {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
-            // const id = payment.bookingId
-            // const filter = { _id: ObjectId(id) }
-            // const updatedDoc = {
-            //     $set: {
-            //         paid: true,
-            //         transactionId: payment.transactionId
-            //     }
-            // }
-            // const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
+            const productId = payment.productId;
+            const filter = { productId }
+            const productFilter = { _id: ObjectId(productId) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const bookingPaid = await bookingsCollection.updateOne(filter, updatedDoc)
+            const advertisePaid = await advertisesCollection.updateOne(filter, updatedDoc)
+            const productPaid = await productsCollection.updateOne(productFilter, updatedDoc)
             res.send(result);
         });
 
@@ -279,6 +283,38 @@ async function run() {
 
             const paidProducts = await paymentsCollection.find(query).toArray();
             res.send(paidProducts);
+        });
+
+        app.delete('/orders/:id', async (req, res) => {
+            const deletingOrderId = req.params.id;
+            const query = { _id: ObjectId(deletingOrderId) };
+            const result = await bookingsCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        app.delete('/allbuyers/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        app.get('/jwt', async (req, res) => {
+            const email = req.query.email;
+            console.log(email);
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user) {
+                const token = jwt.sign(
+                    { email },
+                    process.env.ACCESS_SECRET,
+                    { expiresIn: '1h' }
+                )
+                return res.send({ accessToken: token });
+            };
+
+            res.status(403).send({ message: 'Unauthorised Access' });
+
         });
     }
     finally {
