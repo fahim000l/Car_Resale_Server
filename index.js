@@ -21,27 +21,74 @@ app.get('/', (req, res) => {
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.tzinyke.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+
+function verifyJWT(req, res, next) {
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_SECRET, function (error, decoded) {
+        if (error) {
+            return res.status(403).send({ message: 'Forbiddedn Access' });
+        }
+        req.decoded = decoded;
+        next();
+    })
+
+}
+
+
 async function run() {
 
-    const categoriesCollection = client.db('carResale').collection('categories');
-    const productsCollection = client.db('carResale').collection('products');
-    const usersCollection = client.db('carResale').collection('users');
-    const bookingsCollection = client.db('carResale').collection('bookings');
-    const advertisesCollection = client.db('carResale').collection('advertises');
-    const reportsCollection = client.db('carResale').collection('reports');
-    const paymentsCollection = client.db('carResale').collection('payments');
 
     try {
+
+
+        const categoriesCollection = client.db('carResale').collection('categories');
+        const productsCollection = client.db('carResale').collection('products');
+        const usersCollection = client.db('carResale').collection('users');
+        const bookingsCollection = client.db('carResale').collection('bookings');
+        const advertisesCollection = client.db('carResale').collection('advertises');
+        const reportsCollection = client.db('carResale').collection('reports');
+        const paymentsCollection = client.db('carResale').collection('payments');
+
+
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send('forbidden Acces');
+            }
+            next();
+        }
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'Seller') {
+                return res.status(403).send('forbidden Acces');
+            }
+            next();
+        }
+
+
         app.get('/categories', async (req, res) => {
             const query = {};
             const categories = await categoriesCollection.find(query).toArray();
             res.send(categories);
         });
 
-        app.get('/products', async (req, res) => {
+        app.get('/products', verifyJWT, async (req, res) => {
             let query = {};
 
             if (req.query.email) {
+                const decodedEmail = req.decoded.email;
+                if (req.query.email !== decodedEmail) {
+                    return res.status(401).send({ message: 'Unauthorized Access' });
+                };
                 query = { sellerEmail: req.query.email };
             };
 
@@ -49,7 +96,7 @@ async function run() {
             res.send(products);
         });
 
-        app.get('/products/:id', async (req, res) => {
+        app.get('/products/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const bookingQuery = { productId: id }
@@ -62,7 +109,7 @@ async function run() {
 
         });
 
-        app.get('/categoryProducts/:id', async (req, res) => {
+        app.get('/categoryProducts/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { $and: [{ categoryId: id }, { paid: { $exists: false } }] };
             const products = await productsCollection.find(query).toArray();
@@ -81,7 +128,7 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyJWT, async (req, res) => {
             let query;
             if (req.query.email) {
                 query = { email: req.query.email };
@@ -117,7 +164,7 @@ async function run() {
 
         });
 
-        app.put('/users/:id', async (req, res) => {
+        app.put('/users/:id', verifyJWT, async (req, res) => {
             const seller = req.body;
             const id = seller._id;
             const filter = { _id: ObjectId(id) };
@@ -152,13 +199,13 @@ async function run() {
         //     res.send(user)
         // })
 
-        app.post('/bookings', async (req, res) => {
+        app.post('/bookings', verifyJWT, async (req, res) => {
             const booking = req.body;
             const result = await bookingsCollection.insertOne(booking);
             res.send(result);
         });
 
-        app.get('/orders', async (req, res) => {
+        app.get('/orders', verifyJWT, async (req, res) => {
             let query = {};
 
             if (req.query.email) {
@@ -169,7 +216,7 @@ async function run() {
             res.send(orders);
         });
 
-        app.post('/addproduct', async (req, res) => {
+        app.post('/addproduct', verifyJWT, async (req, res) => {
             const product = req.body;
             const date = new Date();
             product.postedTime = date;
@@ -177,7 +224,7 @@ async function run() {
             res.send(result);
         });
 
-        app.delete('/products/:id', async (req, res) => {
+        app.delete('/products/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const allDeleteQuery = { productId: id };
@@ -188,7 +235,7 @@ async function run() {
             res.send({ productDeleted, adverderDeleted, orderDeleted });
         });
 
-        app.post('/advertisingProducts', async (req, res) => {
+        app.post('/advertisingProducts', verifyJWT, async (req, res) => {
             const product = req.body;
             const date = new Date();
             product.date = date;
@@ -216,20 +263,20 @@ async function run() {
 
         });
 
-        app.delete('/users/:id', async (req, res) => {
+        app.delete('/users/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await usersCollection.deleteOne(query);
             res.send(result);
         });
 
-        app.post('/report', async (req, res) => {
+        app.post('/report', verifyJWT, async (req, res) => {
             const reportingProduct = req.body;
             const result = await reportsCollection.insertOne(reportingProduct);
             res.send(result);
         });
 
-        app.get('/reports', async (req, res) => {
+        app.get('/reports', verifyJWT, async (req, res) => {
             const query = {};
             const reports = await reportsCollection.find(query).toArray();
             res.send(reports);
@@ -285,19 +332,19 @@ async function run() {
             res.send(paidProducts);
         });
 
-        app.delete('/orders/:id', async (req, res) => {
+        app.delete('/orders/:id', verifyJWT, async (req, res) => {
             const deletingOrderId = req.params.id;
             const query = { _id: ObjectId(deletingOrderId) };
             const result = await bookingsCollection.deleteOne(query);
             res.send(result);
         });
 
-        app.delete('/allbuyers/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: ObjectId(id) };
-            const result = await usersCollection.deleteOne(query);
-            res.send(result);
-        });
+        // app.delete('/allbuyers/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const query = { _id: ObjectId(id) };
+        //     const result = await usersCollection.deleteOne(query);
+        //     res.send(result);
+        // });
 
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
